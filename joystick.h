@@ -34,12 +34,17 @@ struct _joystick_event_t {
 	uint32_t time;
 	joystick_event_action_t action;
 	uint8_t number;
+	int is_init;
 };
 typedef struct _joystick_event_t joystick_event_t;
 
 typedef int (*joystick_event_cb)(joystick_event_t event, void *userdata);
 
 int joystick_foreach_event(const char *dev, joystick_event_cb event_cb, void *userdata);
+
+joystick_event_t joystick_foreach_event_noloop(int fd);
+int joystick_device_open(const char *dev);
+void joystick_device_close(int fd);
 
 #ifdef __cplusplus
 }

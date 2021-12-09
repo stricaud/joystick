@@ -22,16 +22,18 @@ struct js_event {
         uint8_t number;    /* axis/button number */
 };
 
-int _handle_event(struct js_event e, joystick_event_cb event_cb, void *userdata)
+joystick_event_t _handle_event(struct js_event e, joystick_event_cb event_cb, void *userdata)
 {
 
 	joystick_event_t event;
 
 	/* printf("%d|%d|%d\n", e.value, e.type, e.number); */
 
+	event.is_init = 0;
 	if (e.type > JS_EVENT_AXIS) {
 		// We skip initialization events
-		return 0;
+		event.is_init = 1;
+		return event;
 	}
 
 	event.time = e.time;
@@ -48,7 +50,7 @@ int _handle_event(struct js_event e, joystick_event_cb event_cb, void *userdata)
 	if (e.type == JS_EVENT_AXIS) {
 		if (e.type != 2) {
 			fprintf(stderr, "Error, unknown event type %d\n", e.type);
-			return -1;
+			return event;
 		}
 		if (e.number == 0) { // Left or Right
 			if (e.value < 0) {
@@ -70,9 +72,11 @@ int _handle_event(struct js_event e, joystick_event_cb event_cb, void *userdata)
 		}
 	}
 
-	event_cb(event, userdata);
+	if (event_cb) {
+		event_cb(event, userdata);
+	}
 
-	return 0;
+	return event;
 }
 
 int joystick_foreach_event(const char *dev, joystick_event_cb event_cb, void *userdata)
@@ -95,4 +99,36 @@ int joystick_foreach_event(const char *dev, joystick_event_cb event_cb, void *us
 	close(fd);
 
 	return 0;
+}
+
+
+/* To use joystick_foreach_event_noloop you must first use joystick_device_open and then joystick_device_close */
+joystick_event_t joystick_foreach_event_noloop(int fd)
+{
+	struct js_event e;
+	joystick_event_t empty_event;
+
+	while (read(fd, &e, sizeof(e)) > 0) {
+		return _handle_event(e, NULL, NULL);
+	}
+
+	return empty_event;
+}
+
+int joystick_device_open(const char *dev)
+{
+	int fd;
+
+	fd = open(dev, O_RDONLY);
+	if (!fd) {
+		fprintf(stderr, "Cannot open joystick device:%s! Check permissions.\n", dev);
+		return -1;
+	}
+
+	return fd;
+}
+
+void joystick_device_close(int fd)
+{
+	close(fd);
 }
