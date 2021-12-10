@@ -53,6 +53,52 @@ int joystickpp_foreach_event(const char *dev, std::function<void(JoystickEvent &
   return 0;
 }
 
+class Joystick {
+public:
+  Joystick(const std::string &dev);
+  ~Joystick(void);
+  JoystickEvent read(void);
+  int received_data(void) { return _received_data; };
+private:
+  int _fd;
+  int _received_data;
+};
+
+Joystick::Joystick(const std::string &dev)
+{
+  _fd = joystick_device_open(dev.c_str());
+  _received_data = 0;
+}
+
+Joystick::~Joystick(void)
+{
+  joystick_device_close(fd);
+}
+
+JoystickEvent Joystick::read(void)
+{
+  JoystickEvent jsevent;
+  joystick_event_t ev;
+
+  _received_data = 0;
+  jsevent.SetAction(JOYSTICK_UNKNOWN);
+
+  ev = joystick_foreach_event_noloop(_fd);
+  if (ev.action == JOYSTICK_UNKNOWN) {
+    return jsevent;
+  }
+  
+  if (!ev.is_init) {
+    _received_data = 1;
+    jsevent.SetTime(ev.time);
+    jsevent.SetAction(ev.action);
+    jsevent.SetNumber(ev.number);
+    return jsevent;
+  }
+
+  return jsevent;
+}
+
 PYBIND11_MODULE(pyjoystick, m) {
   py::enum_<joystick_event_action_t>(m, "JoystickAction")
     .value("JOYSTICK_UNKNOWN", joystick_event_action_t::JOYSTICK_UNKNOWN)
@@ -73,4 +119,8 @@ PYBIND11_MODULE(pyjoystick, m) {
     .def("SetAction", &JoystickEvent::SetAction)
     .def("SetNumber", &JoystickEvent::SetNumber);    
   m.def("foreach_event", &joystickpp_foreach_event);
+  py::class_<Joystick>(m, "Joystick")
+    .def(py::init<const std::string &>())
+    .def("ReceivedData", &Joystick::received_data)
+    .def("Read", &Joystick::read);
 }
