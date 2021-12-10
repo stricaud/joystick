@@ -80,22 +80,25 @@ JoystickEvent Joystick::read(void)
   JoystickEvent jsevent;
   joystick_event_t ev;
 
-  _received_data = 0;
-  jsevent.SetAction(JOYSTICK_UNKNOWN);
 
   ev = joystick_foreach_event_noloop(_fd);
-  if (ev.action == JOYSTICK_UNKNOWN) {
-    return jsevent;
-  }
-  
-  if (!ev.is_init) {
-    _received_data = 1;
-    jsevent.SetTime(ev.time);
-    jsevent.SetAction(ev.action);
-    jsevent.SetNumber(ev.number);
-    return jsevent;
+
+  switch(ev.action) {
+  case JOYSTICK_UNKNOWN:
+    goto noevent;
+  default:
+    if (!ev.is_init) {
+      _received_data = 1;
+      jsevent.SetTime(ev.time);
+      jsevent.SetAction(ev.action);
+      jsevent.SetNumber(ev.number);
+      return jsevent;
+    }    
   }
 
+ noevent:
+  _received_data = 0;
+  jsevent.SetAction(JOYSTICK_UNKNOWN);
   return jsevent;
 }
 
